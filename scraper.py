@@ -1,8 +1,8 @@
 import requests
 import json
 
-# I reconstructed this from your screenshot
-API_URL = "https://propfirmmatch.com/api/trpc/firm.listAll?input=%7B%22json%22%3A%7B%22limit%22%3A100%7D%7D"
+# UPDATED URL: Limit increased to 1000 to get ALL firms
+API_URL = "https://propfirmmatch.com/api/trpc/firm.listAll?input=%7B%22json%22%3A%7B%22limit%22%3A1000%7D%7D"
 
 def fetch_live_data():
     print(f"Targeting URL: {API_URL}")
@@ -19,20 +19,22 @@ def fetch_live_data():
         
         data = response.json()
         
-        # Based on tRPC structure, the data is likely nested deep.
-        # We save the whole thing so you can inspect it.
-        with open("prop_firms_live.json", "w") as f:
-            json.dump(data, f, indent=2)
-            
-        print("✅ Success! Data saved to 'prop_firms_live.json'")
-        
-        # Quick check to see if we got firms
+        # Extract the actual list of firms from the deep JSON structure
+        # Structure is usually: result -> data -> json
         try:
-            # Typically tRPC data is in result -> data -> json -> ...
-            firms = data['result']['data']['json']
-            print(f"🎉 Found {len(firms)} firms in the download.")
-        except:
-            print("Data saved, but the structure was different than expected. Check the JSON file manually.")
+            firms_list = data['result']['data']['json']
+            print(f"🎉 Success! Downloaded {len(firms_list)} firms.")
+            
+            # Save ONLY the list (cleaner than saving the whole messy object)
+            with open("prop_firms_live.json", "w") as f:
+                json.dump(firms_list, f, indent=2)
+                
+            print("✅ Saved clean list to 'prop_firms_live.json'")
+            
+        except KeyError:
+            print("⚠️ Structure changed? Saving raw data instead.")
+            with open("prop_firms_live.json", "w") as f:
+                json.dump(data, f, indent=2)
 
     except Exception as e:
         print(f"❌ Error: {e}")
