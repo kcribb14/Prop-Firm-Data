@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prop Firm Live Data</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; color: #e2e8f0; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { text-align: center; color: #38bdf8; margin-bottom: 20px; }
+        
+        /* Search Bar */
+        .controls { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        input#search { padding: 10px; width: 100%; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: white; font-size: 16px; }
+
+        /* Table Styles */
+        .table-container { overflow-x: auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-radius: 8px; background: #1e293b; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 16px; text-align: left; border-bottom: 1px solid #334155; }
+        th { background-color: #0f172a; color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 0.85rem; position: sticky; top: 0; }
+        tr:hover { background-color: #334155; }
+        
+        /* Badge Styles */
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .badge-green { background: #065f46; color: #34d399; }
+        .badge-blue { background: #1e3a8a; color: #60a5fa; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🚀 Prop Firm Match Live Data</h1>
+    
+    <div class="controls">
+        <input type="text" id="search" placeholder="Search firms (e.g., FTMO, TopStep)..." onkeyup="filterTable()">
+    </div>
+
+    <div class="table-container">
+        <table id="firmTable">
+            <thead>
+                <tr id="tableHeader">
+                    </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr><td colspan="5" style="text-align:center">Loading data...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // CONFIG: The path to your JSON file
+    const DATA_URL = 'prop_firms_live.json';
+
+    async function loadData() {
+        try {
+            const response = await fetch(DATA_URL);
+            if (!response.ok) throw new Error("Could not find JSON file");
+            
+            const rawData = await response.json();
+            
+            // ADAPTIVE PARSING:
+            // Depending on how the API returned data, we look for the list
+            let firms = [];
+            if (Array.isArray(rawData)) {
+                firms = rawData;
+            } else if (rawData.result && rawData.result.data && rawData.result.data.json) {
+                firms = rawData.result.data.json; // tRPC structure
+            } else {
+                console.error("Unknown Data Structure", rawData);
+                alert("Data loaded but structure is unknown. Check Console.");
+                return;
+            }
+
+            renderTable(firms);
+        } catch (error) {
+            document.getElementById('tableBody').innerHTML = `<tr><td colspan="5" style="color:red; text-align:center">Error: ${error.message}. <br>Make sure you are running a local server (see instructions).</td></tr>`;
+        }
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('tableBody');
+        const thead = document.getElementById('tableHeader');
+        tbody.innerHTML = '';
+        thead.innerHTML = '';
+
+        if (data.length === 0) return;
+
+        // 1. Generate Headers dynamically based on the first item
+        // We pick a few key columns to avoid clutter. Adjust keys as needed.
+        const keyColumns = ['name', 'rating', 'trustpilotRating', 'founded', 'status']; // Add 'price' if available
+        
+        // Fallback: If specific keys don't exist, use the first 5 keys of the object
+        const columns = keyColumns.every(k => k in data[0]) ? keyColumns : Object.keys(data[0]).slice(0, 5);
+
+        columns.forEach(col => {
+            const th = document.createElement('th');
+            th.innerText = col.replace(/([A-Z])/g, ' $1').trim(); // Format camelCase to Title Case
+            thead.appendChild(th);
+        });
+
+        // 2. Generate Rows
+        data.forEach(firm => {
+            const tr = document.createElement('tr');
+            columns.forEach(col => {
+                const td = document.createElement('td');
+                let value = firm[col];
+                
+                // Formatting logic
+                if (typeof value === 'object') value = JSON.stringify(value); // Handle nested objects
+                if (col.toLowerCase().includes('rating')) value = `⭐ ${value}`;
+                
+                td.innerText = value || '-';
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+    }
+
+    function filterTable() {
+        const input = document.getElementById('search');
+        const filter = input.value.toUpperCase();
+        const table = document.getElementById('firmTable');
+        const tr = table.getElementsByTagName('tr');
+
+        for (let i = 1; i < tr.length; i++) {
+            let found = false;
+            const tds = tr[i].getElementsByTagName('td');
+            for (let j = 0; j < tds.length; j++) {
+                if (tds[j].textContent.toUpperCase().indexOf(filter) > -1) {
+                    found = true;
+                    break;
+                }
+            }
+            tr[i].style.display = found ? "" : "none";
+        }
+    }
+
+    loadData();
+</script>
+
+</body>
+</html>
